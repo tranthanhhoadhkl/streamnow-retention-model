@@ -33,12 +33,12 @@ Ràng buộc nghiệp vụ quan trọng: đội Retention chỉ có năng lực 
 
 ### 2.2 Chất lượng dữ liệu
 
-- **Trùng lặp**: `subscribers` có 30 dòng trùng `subscriber_id` — loại bỏ, giữ bản ghi đầu tiên, đảm bảo mỗi subscriber chỉ xuất hiện đúng một lần.
+- **Trùng lặp**: `subscribers` có 30 dòng trùng `subscriber_id` loại bỏ, giữ bản ghi đầu tiên, đảm bảo mỗi subscriber chỉ xuất hiện đúng một lần.
 - **Toàn vẹn tham chiếu**: không có `subscriber_id` mồ côi (orphan) giữa `viewing`/`tickets`/`billing` và `subscribers` → join an toàn bằng left-join.
-- **Lỗi ngày tháng**: 4,266 phiên xem và một số ticket có `session_date`/`ticket_date` trước `signup_date` của chính subscriber đó — về logic là không hợp lệ (không thể xem nội dung hay tạo ticket trước khi tồn tại trong hệ thống). Các dòng này bị loại trước bước tổng hợp feature ở Section 4, để tránh làm méo các feature như `total_sessions_90d`.
-- **Missing có ý nghĩa vs missing do lỗi**: `resolution_days` thiếu ở 3,328/9,978 ticket (ticket chưa được xử lý xong) — khác bản chất với missing ở `age`/`gender` (lỗi nhập liệu), nên **không** impute bằng median mà giữ NaN/xử lý riêng ở bước feature engineering.
+- **Lỗi ngày tháng**: 4,266 phiên xem và một số ticket có `session_date`/`ticket_date` trước `signup_date` của chính subscriber đó về logic là không hợp lệ (không thể xem nội dung hay tạo ticket trước khi tồn tại trong hệ thống). Các dòng này bị loại trước bước tổng hợp feature ở Section 4, để tránh làm méo các feature như `total_sessions_90d`.
+- **Missing có ý nghĩa vs missing do lỗi**: `resolution_days` thiếu ở 3,328/9,978 ticket (ticket chưa được xử lý xong) khác bản chất với missing ở `age`/`gender` (lỗi nhập liệu), nên **không** impute bằng median mà giữ NaN/xử lý riêng ở bước feature engineering.
 - **Không hoạt động ≠ thiếu dữ liệu**: theo đúng lưu ý ở `data_dictionary.md`, subscriber không có phiên xem nào trong 90 ngày gần nhất được coi là tín hiệu thật (không hoạt động), không phải dữ liệu bị thiếu — `total_sessions_90d`/`total_watch_mins_90d` được điền `0` chứ không drop.
-- **Mất cân bằng lớp**: churn rate tổng thể chỉ 5.8% — không phải lỗi dữ liệu, nhưng là lý do chính chi phối lựa chọn metric (ROC-AUC thay vì accuracy) và cách xử lý imbalance khi huấn luyện (`class_weight='balanced'`).
+- **Mất cân bằng lớp**: churn rate tổng thể chỉ 5.8% không phải lỗi dữ liệu, nhưng là lý do chính chi phối lựa chọn metric (ROC-AUC thay vì accuracy) và cách xử lý imbalance khi huấn luyện (`class_weight='balanced'`).
 
 ### 2.3 Join & tổng hợp dữ liệu
 
@@ -48,19 +48,19 @@ Ba bảng giao dịch (`viewing_history`, `support_tickets`, `billing`) được
 - **Support tickets** → `total_tickets`, `pct_unresolved`, `avg_resolution_days`, `num_cancel_intent_tickets` (đếm riêng ticket loại `cancellation_intent`).
 - **Billing** → `total_billing_cycles`, `billing_failure_rate`, `avg_retry_count`, `total_amount_due`.
 
-Kết quả là bảng `master` — 1 dòng/subscriber, đầy đủ đặc trưng hành vi/thanh toán/hỗ trợ.
+Kết quả là bảng `master` 1 dòng/subscriber, đầy đủ đặc trưng hành vi/thanh toán/hỗ trợ.
 
-## 3. Khám phá dữ liệu (EDA) — các phát hiện chính
+## 3. Khám phá dữ liệu (EDA) các phát hiện chính
 
 Xếp theo mức độ liên quan đến churn:
 
-1. **Số lần thanh toán thất bại là tín hiệu rõ ràng và đơn điệu nhất**: churn rate tăng gần như tuyến tính từ ~4.4% (0 lần thất bại) lên ~15.3% (5 lần) — tăng hơn 3 lần, không nhiễu, không ngoại lệ.
-2. **Tenure (thời gian gắn bó)** rất mạnh: tenure trung vị của nhóm churn chỉ 122 ngày, so với 427 ngày ở nhóm không churn — chênh lệch hơn 3.5 lần.
-3. **Hoạt động xem gần đây (30 ngày)** rất mạnh: số phiên xem trung vị của nhóm churn gần bằng 0, so với 2 ở nhóm không churn — phần lớn subscriber sắp huỷ đã gần như ngừng dùng dịch vụ *trước khi* chính thức huỷ.
+1. **Số lần thanh toán thất bại là tín hiệu rõ ràng và đơn điệu nhất**: churn rate tăng gần như tuyến tính từ ~4.4% (0 lần thất bại) lên ~15.3% (5 lần) tăng hơn 3 lần, không nhiễu, không ngoại lệ.
+2. **Tenure (thời gian gắn bó)** rất mạnh: tenure trung vị của nhóm churn chỉ 122 ngày, so với 427 ngày ở nhóm không churn, chênh lệch hơn 3.5 lần.
+3. **Hoạt động xem gần đây (30 ngày)** rất mạnh: số phiên xem trung vị của nhóm churn gần bằng 0, so với 2 ở nhóm không churn phần lớn subscriber sắp huỷ đã gần như ngừng dùng dịch vụ *trước khi* chính thức huỷ.
 4. **Loại gói (`plan`)** là mối quan hệ yếu nhất trong 4 biến trên: Premium có churn cao nhất (8.3%) so với Basic/Standard (~4.7–5.0%), nhưng chênh lệch tuyệt đối chỉ 3–4 điểm phần trăm.
-5. **Phân khúc rủi ro cao nhất**: Premium (8.33% — cao nhất trong mọi phân khúc) và Voucher (7.16% — cao nhất trong các phương thức thanh toán). Premium đáng lo vì đây cũng là nhóm mang lại doanh thu/subscriber cao nhất; Voucher đáng lo vì nhóm này thường thiếu cam kết tài chính dài hạn (không gắn thẻ tín dụng/ghi nợ định kỳ).
-6. **Phân phối tenure** có một đỉnh bất thường ở giá trị lớn nhất (~1750–1830 ngày), tách biệt hẳn khỏi phần đuôi giảm dần — dấu hiệu "left-censoring": có một ngày ra mắt dịch vụ cụ thể, mọi subscriber đăng ký từ ngày đầu đều bị dồn về cùng một giá trị tenure tối đa.
-7. **Vé hỗ trợ liên quan billing** là loại phổ biến nhất (~2,500 vé) — nhiều hơn cả vé kỹ thuật, dù với nền tảng streaming người ta thường kỳ vọng lỗi kỹ thuật (buffering, app lỗi...) mới là nguồn vé lớn nhất. Đây là gợi ý về ma sát thanh toán là vấn đề vận hành đáng chú ý.
+5. **Phân khúc rủi ro cao nhất**: Premium (8.33% cao nhất trong mọi phân khúc) và Voucher (7.16% — cao nhất trong các phương thức thanh toán). Premium đáng lo vì đây cũng là nhóm mang lại doanh thu/subscriber cao nhất; Voucher đáng lo vì nhóm này thường thiếu cam kết tài chính dài hạn (không gắn thẻ tín dụng/ghi nợ định kỳ).
+6. **Phân phối tenure** có một đỉnh bất thường ở giá trị lớn nhất (~1750–1830 ngày), tách biệt hẳn khỏi phần đuôi giảm dần dấu hiệu "left-censoring": có một ngày ra mắt dịch vụ cụ thể, mọi subscriber đăng ký từ ngày đầu đều bị dồn về cùng một giá trị tenure tối đa.
+7. **Vé hỗ trợ liên quan billing** là loại phổ biến nhất (~2,500 vé) nhiều hơn cả vé kỹ thuật, dù với nền tảng streaming người ta thường kỳ vọng lỗi kỹ thuật (buffering, app lỗi...) mới là nguồn vé lớn nhất. Đây là gợi ý về ma sát thanh toán là vấn đề vận hành đáng chú ý.
 
 ## 4. Feature engineering
 
@@ -71,12 +71,12 @@ Từ bảng `master`, xây dựng thêm các feature mới, mỗi feature bám t
 | `tenure_bucket` | Nhóm tenure: `new` (<3 tháng) / `growing` (3–12 tháng) / `mature` (>12 tháng) | Subscriber mới chưa hình thành thói quen sử dụng/cam kết, dễ huỷ sớm nếu trải nghiệm ban đầu không như kỳ vọng |
 | `view_accel` | Tốc độ thay đổi watch time 30 ngày gần nhất so với 30 ngày trước đó | Giá trị âm/thấp (xem ngày càng ít) báo hiệu subscriber đang dần rời xa dịch vụ trước khi chính thức huỷ |
 | `billing_failure_rate` | Tỷ lệ chu kỳ thanh toán thất bại/tranh chấp trên tổng số chu kỳ | Thanh toán thất bại vừa là nguyên nhân trực tiếp gây huỷ tự động (thẻ hết hạn, thiếu tiền), vừa phản ánh gián tiếp mức độ gắn bó thấp |
-| `has_cancel_intent_ticket` | Đã từng tạo ticket loại `cancellation_intent` hay chưa (0/1) | Tín hiệu ý định huỷ trực tiếp và mạnh nhất trong toàn bộ dữ liệu — gần như một tuyên bố ý định từ khách hàng |
+| `has_cancel_intent_ticket` | Đã từng tạo ticket loại `cancellation_intent` hay chưa (0/1) | Tín hiệu ý định huỷ trực tiếp và mạnh nhất trong toàn bộ dữ liệu gần như một tuyên bố ý định từ khách hàng |
 | `avg_session_duration` | Watch time trung bình mỗi phiên = tổng phút / tổng số phiên | Giá trị thấp có thể phản ánh nội dung không đủ hấp dẫn hoặc subscriber thử rồi bỏ giữa chừng — khác với `completion_rate` (đo mức độ hoàn thành từng lượt xem) |
-| `is_inactive_90d` | Cờ đánh dấu subscriber không có phiên xem nào trong 90 ngày | Tín hiệu "ngắt kết nối" mạnh nhất — vẫn trả tiền nhưng không dùng dịch vụ thường là nhóm dễ huỷ nhất khi họ rà soát lại chi tiêu hàng tháng |
+| `is_inactive_90d` | Cờ đánh dấu subscriber không có phiên xem nào trong 90 ngày | Tín hiệu "ngắt kết nối" mạnh nhất vẫn trả tiền nhưng không dùng dịch vụ thường là nhóm dễ huỷ nhất khi họ rà soát lại chi tiêu hàng tháng |
 | `days_since_last_session` | Số ngày kể từ phiên xem gần nhất | Càng lâu không xem, khả năng subscriber đã "rời bỏ về mặt tinh thần" trước khi chính thức huỷ càng cao |
 
-`num_cancel_intent_tickets` (đếm số ticket ý định huỷ) cũng được giữ lại bên cạnh cờ nhị phân `has_cancel_intent_ticket`, theo đúng lưu ý ở `data_dictionary.md` về việc cân nhắc kỹ trước khi đưa tín hiệu này vào model để tránh leakage — nhóm quyết định giữ lại vì đây là tín hiệu hành vi đã xảy ra tại thời điểm snapshot (không phải thông tin từ tương lai), không phải leakage theo đúng nghĩa thời gian.
+`num_cancel_intent_tickets` (đếm số ticket ý định huỷ) cũng được giữ lại bên cạnh cờ nhị phân `has_cancel_intent_ticket`, theo đúng lưu ý ở `data_dictionary.md` về việc cân nhắc kỹ trước khi đưa tín hiệu này vào model để tránh leakage nhóm quyết định giữ lại vì đây là tín hiệu hành vi đã xảy ra tại thời điểm snapshot (không phải thông tin từ tương lai), không phải leakage theo đúng nghĩa thời gian.
 
 ## 5. Huấn luyện mô hình
 
@@ -88,10 +88,10 @@ Dữ liệu được chia 80/20, stratify theo `churned_30d` để giữ đúng 
 
 | Model | Xử lý imbalance | Regularisation/Tuning |
 |---|---|---|
-| **Logistic Regression** | `class_weight='balanced'` | L2 (Ridge), `C` tune qua `GridSearchCV` trên `{0.01, 0.1, 1.0, 10.0}` — ưu tiên vì nhiều feature tổng hợp từ `viewing_history` có khả năng tương quan với nhau (ví dụ tổng watch time và số phiên) |
-| **Random Forest** | `class_weight='balanced'` | `GridSearchCV` trên `n_estimators∈{100,200,300,500}`, `max_depth∈{4,6,8}`, `min_samples_leaf∈{10,20}` — giới hạn độ sâu và kích thước lá vì tập train chỉ ~6,400 dòng, tránh cây "học thuộc" nhiễu |
+| **Logistic Regression** | `class_weight='balanced'` | L2 (Ridge), `C` tune qua `GridSearchCV` trên `{0.01, 0.1, 1.0, 10.0}` ưu tiên vì nhiều feature tổng hợp từ `viewing_history` có khả năng tương quan với nhau (ví dụ tổng watch time và số phiên) |
+| **Random Forest** | `class_weight='balanced'` | `GridSearchCV` trên `n_estimators∈{100,200,300,500}`, `max_depth∈{4,6,8}`, `min_samples_leaf∈{10,20}` giới hạn độ sâu và kích thước lá vì tập train chỉ ~6,400 dòng, tránh cây "học thuộc" nhiễu |
 
-Cả hai được đánh giá bằng ROC-AUC (CV mean và validation), không dùng ngưỡng 0.5 mặc định vì mục tiêu cuối cùng là **xếp hạng** subscriber theo rủi ro để chọn top 20%, không phải phân loại nhị phân đơn thuần.
+Cả hai được đánh giá bằng ROC-AUC (CV mean và validation), không dùng ngưỡng 0.5 mặc định vì mục tiêu cuối cùng là xếp hạng subscriber theo rủi ro để chọn top 20%, không phải phân loại nhị phân đơn thuần.
 
 ### 5.3 Kết quả so sánh & model được chọn
 
@@ -107,7 +107,7 @@ Hai model gần như ngang nhau ở CV AUC (0.9126 vs 0.9129), nhưng Random For
 ## 6. Đánh giá mô hình
 
 - **ROC curve**: cả hai model nằm rõ trên đường chéo random-guess, AUC ~0.91 trên validation — mức phân tách mạnh so với tỷ lệ nền churn chỉ 5.8%.
-- **Phân phối điểm dự đoán**: phần lớn non-churner dồn gần 0, trong khi churner trải rộng từ ~0.2 đến 0.9 thay vì dồn gần 0 như nhóm còn lại — đúng hình dạng kỳ vọng ở mức AUC ~0.91, cho thấy model thực sự đẩy churner thật lên điểm cao chứ không chỉ đoán an toàn cho tất cả.
+- **Phân phối điểm dự đoán**: phần lớn non-churner dồn gần 0, trong khi churner trải rộng từ ~0.2 đến 0.9 thay vì dồn gần 0 như nhóm còn lại đúng hình dạng kỳ vọng ở mức AUC ~0.91, cho thấy model thực sự đẩy churner thật lên điểm cao chứ không chỉ đoán an toàn cho tất cả.
 - **SHAP (Extension E2)** trên top 5 subscriber rủi ro cao nhất (xác suất dự đoán 0.946–0.962) cho thấy `num_cancel_intent_tickets` là yếu tố đóng góp lớn nhất ở cả 5 trường hợp (+0.108 đến +0.254), tiếp theo là `has_cancel_intent_ticket` (+0.106 đến +0.180) — hai tín hiệu ý định huỷ chiếm phần lớn lý do các subscriber này đứng đầu danh sách rủi ro. `days_since_last_session` (+0.062 đến +0.092) đứng thứ ba, cho thấy sự mất kết nối cộng dồn với ý định huỷ đã nêu, chứ không phải hai tín hiệu này tách rời nhau. Các feature liên quan billing (`total_billing_cycles`, `avg_retry_count`, `billing_failure_rate`) là yếu tố phụ nhưng xuất hiện nhất quán ở phần lớn các trường hợp.
 
 ## 7. Tác động kinh doanh (Business Impact)
@@ -130,12 +130,12 @@ Tương đương khoảng £2,527.98/năm giá trị tăng thêm so với chọn
 
 ## 9. Extension
 
-- **E1 — Survival analysis (Kaplan–Meier)**: ước lượng đường cong sống sót theo từng gói (`basic`/`standard`/`premium`) bằng `lifelines`. Đúng như phát hiện ở Section 3 (tenure trung vị 122 ngày ở nhóm churn vs 427 ngày ở nhóm không churn), đường cong giảm dốc nhất ở vùng tenure sớm (vài trăm ngày đầu) rồi thoải dần với các subscriber đã "sống sót" đủ lâu để được coi là `mature` — nhất quán với logic của `tenure_bucket` ở Section 5.
-- **E2 — SHAP**: xem Section 6 — hai tín hiệu ý định huỷ (`num_cancel_intent_tickets`, `has_cancel_intent_ticket`) và sự mất kết nối gần đây (`days_since_last_session`) là bộ ba yếu tố chi phối rủi ro của các subscriber cao nhất, đúng với trực giác nghiệp vụ.
+- **E1 — Survival analysis (Kaplan–Meier)**: ước lượng đường cong sống sót theo từng gói (`basic`/`standard`/`premium`) bằng `lifelines`. Đúng như phát hiện ở Section 3 (tenure trung vị 122 ngày ở nhóm churn vs 427 ngày ở nhóm không churn), đường cong giảm dốc nhất ở vùng tenure sớm (vài trăm ngày đầu) rồi thoải dần với các subscriber đã "sống sót" đủ lâu để được coi là `mature`  nhất quán với logic của `tenure_bucket` ở Section 5.
+- **E2 — SHAP**: xem Section 6  hai tín hiệu ý định huỷ (`num_cancel_intent_tickets`, `has_cancel_intent_ticket`) và sự mất kết nối gần đây (`days_since_last_session`) là bộ ba yếu tố chi phối rủi ro của các subscriber cao nhất, đúng với trực giác nghiệp vụ.
 
 ## 10. Tổng kết
 
 - **Model triển khai**: Random Forest (`class_weight='balanced'`, `max_depth`/`min_samples_leaf` tune qua `GridSearchCV`), Val ROC-AUC ≈ 0.914, lưu tại `model.pkl`.
-- **Tại ngưỡng vận hành thực tế (top 20%)**: chính sách theo model tạo thêm £210.66/tháng (≈ £2,527.98/năm) so với liên hệ ngẫu nhiên — lift 321.9%.
-- **Tín hiệu churn mạnh nhất**: ý định huỷ đã nêu rõ (`cancellation_intent` ticket), mất kết nối gần đây (không xem trong 90 ngày / `days_since_last_session` cao), tenure ngắn, và thanh toán thất bại lặp lại — nhất quán giữa EDA, hệ số/importance của model, và SHAP.
+- **Tại ngưỡng vận hành thực tế (top 20%)**: chính sách theo model tạo thêm £210.66/tháng (≈ £2,527.98/năm) so với liên hệ ngẫu nhiên lift 321.9%.
+- **Tín hiệu churn mạnh nhất**: ý định huỷ đã nêu rõ (`cancellation_intent` ticket), mất kết nối gần đây (không xem trong 90 ngày / `days_since_last_session` cao), tenure ngắn, và thanh toán thất bại lặp lại  nhất quán giữa EDA, hệ số/importance của model, và SHAP.
 - Toàn bộ pipeline xử lý đúng các lưu ý trong `data_dictionary.md`: loại hoạt động trước ngày đăng ký, giữ "không hoạt động" như một tín hiệu thật (không impute bằng 0 một cách mù quáng cho mọi cột), và cân nhắc rõ ràng trước khi đưa `cancellation_intent` vào model.

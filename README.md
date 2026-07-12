@@ -4,7 +4,7 @@
 
 Repo gồm:
 
-- `coursework.ipynb`: bản nộp chính, bám theo đúng cấu trúc/yêu cầu của mark scheme (9 section + Extension), từ tìm hiểu bài toán, load/clean/join dữ liệu, EDA, feature engineering, huấn luyện 2 model bắt buộc (Logistic Regression + Random Forest), đánh giá, tính business impact, đề xuất giám sát drift, và 2 phần mở rộng (survival analysis + SHAP).
+- `coursework.ipynb`: bản nộp chính, bao gồm tìm hiểu bài toán, load/clean/join dữ liệu, EDA, feature engineering, huấn luyện 2 model bắt buộc (Logistic Regression + Random Forest), đánh giá, tính business impact, đề xuất giám sát drift, và 2 phần mở rộng (survival analysis + SHAP).
 - `model.pkl`: model cuối cùng được chọn để triển khai (Random Forest), lưu bằng `joblib`.
 - `data/`: 4 file dữ liệu nguồn: `subscribers.csv`, `viewing_history.csv`, `support_tickets.csv`, `billing.csv`.
 - `data_dictionary.md`: mô tả schema từng bảng và các lưu ý dữ liệu quan trọng (đặc biệt là rủi ro leakage của `cancellation_intent`).
